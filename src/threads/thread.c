@@ -133,7 +133,7 @@ thread_tick (void)
 #endif
   else
     kernel_ticks++;
-
+    
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
     intr_yield_on_return ();

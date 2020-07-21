@@ -35,6 +35,7 @@ static void real_time_delay (int64_t num, int32_t denom);
 void
 timer_init (void) 
 {
+  printf("Timer initiation\n");
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
 }
@@ -90,10 +91,18 @@ void
 timer_sleep (int64_t ticks) 
 {
   int64_t start = timer_ticks ();
+  struct thread *t = thread_current ();
+  tid_t cur_tid = t->tid;
+  int cur_tid_2 = cur_tid;
+  static int call_num;
+  call_num++;
 
   ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
+  while (timer_elapsed (start) < ticks) {
     thread_yield ();
+  }
+  //printf("%s\n", t->name);
+  //printf("%s\n", thread_current ()->name);
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
