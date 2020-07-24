@@ -24,11 +24,26 @@ static int64_t ticks;
    Initialized by timer_calibrate(). */
 static unsigned loops_per_tick;
 
+/* List of blocked threads.
+   Timer checks this list every ticks and awake threads. 
+   List element is sorted by awake_time in ascending order. */
+static struct list blocked_threads;
+
+/* Store thread and wake up time. */
+struct blocked_thread 
+  {
+    int64_t awake_ticks; 
+    struct thread* thr;
+    struct list_elem elem;
+  };
+
 static intr_handler_func timer_interrupt;
 static bool too_many_loops (unsigned loops);
 static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
+static void push_blocked_thread (int64_t awake_ticks);
+static void awake_thread (void);
 
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
@@ -36,6 +51,7 @@ void
 timer_init (void) 
 {
   printf("Timer initiation\n");
+  list_init (&blocked_threads);
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
 }
@@ -91,18 +107,79 @@ void
 timer_sleep (int64_t ticks) 
 {
   int64_t start = timer_ticks ();
-  struct thread *t = thread_current ();
-  tid_t cur_tid = t->tid;
-  int cur_tid_2 = cur_tid;
-  static int call_num;
-  call_num++;
 
   ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) {
-    thread_yield ();
+
+  //printf("tid : %d\n", thread_tid());
+  //timer_print_stats();
+  push_blocked_thread(ticks);
+  //timer_print_stats();
+  
+  //printf("tid2 : %d\n", thread_tid());
+  //while (timer_elapsed (start) < ticks) {
+  //  thread_yield ();
+  //}
+}
+
+static void
+push_blocked_thread (int64_t awake_ticks)
+{
+  //printf("Push_blocked_thread!\n");
+  struct blocked_thread cnt;
+  cnt.awake_ticks = awake_ticks;
+  cnt.thr = thread_current();
+
+  bool push_success = false;
+  struct list_elem *e;
+  for (e = list_begin (&blocked_threads); e != list_end (&blocked_threads);
+      e = list_next (e))
+  {
+    //printf("for loop start \n");
+    struct blocked_thread *bt = list_entry (e, struct blocked_thread, elem);
+    //printf("bt->awake_ticks : %"PRId64"\n", bt->awake_ticks);
+    //printf("cnt.awake_ticks : %"PRId64"\n", cnt.awake_ticks);
+    if (cnt.awake_ticks <= bt->awake_ticks)
+     {
+       list_insert (&(bt->elem), &(cnt.elem));
+       push_success = true;
+       break;
+     }
   }
-  //printf("%s\n", t->name);
-  //printf("%s\n", thread_current ()->name);
+  //printf("Hello???\n");
+  /* Push failed if list is empty or
+    current element's awake_time is largest. */
+  if (!push_success)
+    {
+      //printf("Push failed\n");
+      //struct thread* t = thread_current ();
+      //list_push_back (&blocked_threads, &t->elem);
+      list_push_back (&blocked_threads, &(cnt.elem));
+    }
+
+  int32_t tmp = 1;
+  for (e = list_begin (&blocked_threads); e != list_end (&blocked_threads);
+      e = list_next (e))
+    {
+      struct blocked_thread *bt = list_entry (e, struct blocked_thread, elem);
+      //printf("List elem %"PRId32" : %"PRId64"", tmp++, bt->awake_ticks);
+    }
+  //printf("\n");
+  enum intr_level old_level = intr_disable ();
+  thread_block();
+  intr_set_level (old_level);
+}
+
+static void
+awake_thread (void)
+{
+  if(list_empty(&blocked_threads))
+    return;
+
+  struct list_elem *e = list_front(&blocked_threads);
+  struct blocked_thread *bt = list_entry (e, struct blocked_thread, elem);
+  //printf("Awake thread bt->awake_ticks : %"PRId64"\n", bt->awake_ticks);
+  //timer_print_stats();
+  thread_unblock(bt->thr);
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -180,6 +257,8 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
+  //timer_print_stats();
+  awake_thread();
   thread_tick ();
 }
 
