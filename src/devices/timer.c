@@ -113,8 +113,6 @@ timer_sleep (int64_t ticks)
 static void
 sleep_thread (int64_t awake_tick)
 {
-  //printf("Push_blocked_thread!\n");
-  //printf("cnt tid in push_blocked_thread 1 : %d \n", thread_tid());
   struct thread *t = thread_current ();
   t->awake_tick = awake_tick;
 
@@ -124,10 +122,7 @@ sleep_thread (int64_t awake_tick)
   for (e = list_begin (&blocked_threads); e != list_end (&blocked_threads);
       e = list_next (e))
   {
-    //printf("for loop start \n");
     struct thread *iter = list_entry (e, struct thread, sleepelem);
-    //printf("bt->awake_ticks : %"PRId64"\n", bt->awake_ticks);
-    //printf("cnt.awake_ticks : %"PRId64"\n", cnt.awake_ticks);
     if (t->awake_tick <= iter->awake_tick)
      {
        list_insert (&(iter->sleepelem), &(thread_current ()->sleepelem));
@@ -135,28 +130,11 @@ sleep_thread (int64_t awake_tick)
        break;
      }
   }
-  //printf("cnt tid in push_blocked_thread 2 : %d \n", thread_tid());
-  //printf("Hello???\n");
+  
   /* Push failed if list is empty or
     current element's awake_time is largest. */
   if (!push_success)
-    {
-      //printf("Push failed\n");
-      //struct thread* t = thread_current ();
-      //list_push_back (&blocked_threads, &t->elem);
-      list_push_back (&blocked_threads, &(thread_current ()->sleepelem));
-    }
-
-  //int32_t tmp = 1;
-  //printf("Hello???\n");
-  /*
-  for (e = list_begin (&blocked_threads); e != list_end (&blocked_threads);
-      e = list_next (e))
-    {
-      struct thread *t = list_entry (e, struct thread, sleepelem);
-      printf("List elem %"PRId32" : %"PRId64" asdf\n", tmp++, t->awake_tick);
-    }
-  printf("\n");*/
+    list_push_back (&blocked_threads, &(thread_current ()->sleepelem));
 }
 
 static void
@@ -168,11 +146,8 @@ awake_thread (void)
   struct list_elem *e = list_front(&blocked_threads);
   struct thread *t = list_entry (e, struct thread, sleepelem);
   int64_t cnt_time = timer_ticks();
-  //printf("cnt tid in push_blocked_thread 1 : %d \n", thread_tid());
-  //printf("blocked thread's tid : %d \n", bt->thr->tid);
+  
   while (!list_empty(&blocked_threads) && t->awake_tick <= cnt_time) {
-    //timer_print_stats();
-    //printf("blocked thread's tid : %d \n", t->tid);
     thread_unblock(t);
     list_pop_front(&blocked_threads);
 
@@ -181,11 +156,6 @@ awake_thread (void)
     e = list_front(&blocked_threads);
     t = list_entry (e, struct thread, sleepelem);
   }
-  //if (t->awake_tick <= cnt_time) {
-  //  printf("blocked thread's tid : %d \n", t->tid);
-    //struct list_elem* e = list_pop_front(&blocked_threads);
-  //  thread_unblock(t);
-  //}
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
