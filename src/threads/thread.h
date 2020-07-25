@@ -90,6 +90,10 @@ struct thread
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
 
+    /* added to solve problem 2-2. Alarm clock */
+    struct list_elem sleepelem;         /* List element for blocked threads list. */
+    int64_t awake_tick;                /* Tick for wake up. */
+
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
