@@ -244,8 +244,8 @@ thread_unblock (struct thread *t)
   ASSERT (t->status == THREAD_BLOCKED);
   list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
-  if (t->priority > thread_current ()->priority)
-    thread_yield ();
+  //if (t->priority > thread_current ()->priority)
+  //  thread_yield ();
   intr_set_level (old_level);
 }
 
@@ -298,6 +298,9 @@ thread_exit (void)
      when it calls thread_schedule_tail(). */
   intr_disable ();
   list_remove (&thread_current()->allelem);
+  /* added */
+  //list_remove (&thread_current()->elem);
+  /* added */
   thread_current ()->status = THREAD_DYING;
   schedule ();
   NOT_REACHED ();
@@ -509,10 +512,12 @@ next_thread_to_run (void)
   else
   {
     struct list_elem* e = list_max (&ready_list, &priority_less_func, NULL);
+    list_remove (e);
+    //struct list_elem* e = list_pop_front (&ready_list);
     struct thread *ret = list_entry(e, struct thread, elem);
-    int db_tid = ret->tid;
-    int db_priority = ret->priority;
     return list_entry(e, struct thread, elem);
+    
+    //return list_entry (list_pop_front (&ready_list), struct thread, elem);
   }
 }
 
@@ -607,6 +612,12 @@ priority_less_func (const struct list_elem *a,
   struct thread *t2 = list_entry (b, struct thread, elem);
   int db_t1_priority = t1->priority;
   int db_t2_priority = t2->priority;
+  bool t1_isblocked = false;
+  bool t2_isblocked = false;
+  if (t1->status == THREAD_BLOCKED)
+    t1_isblocked = true;
+  if (t2->status == THREAD_BLOCKED)
+    t2_isblocked = true;
   return (t1->priority < t2->priority);
 }
 
